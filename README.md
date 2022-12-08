@@ -1,6 +1,6 @@
 #### Helper Script for Patching App Services – Quick Start Template Based Deployment
 
-NSG Requirements:
+# NSG Requirements:
 # •	Required on aps-ad-Nsg, aps-fs-Nsg, and aps-sql-Nsg
 # •	Inbound Rule
 ## o	Priority: 800
