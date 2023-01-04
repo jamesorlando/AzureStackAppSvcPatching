@@ -191,7 +191,7 @@ Function Set-Failover ($ServerName,$mode){
         $upyet = @"
     select replica_id, role_desc, connected_state, connected_state_desc, synchronization_health_desc 
     from sys.dm_hadr_availability_replica_states
-    "@
+"@
     
             do
             {
