@@ -46,13 +46,13 @@ Function Set-Failover ($ServerName,$mode){
     #endregion 
     
     #Must be in cab format for dism command to work
-    $UpdateSAS = "https://patching.blob.local.azurestack.external/updates/Windows10.0-KB5021654-x64.cab?sp=racwd&st=2022-12-07T17:53:02Z&se=2023-01-06T01:53:02Z&spr=https&sv=2019-02-02&sr=b&sig=SZpMNRT5w2bXVM4q%2F4S7Q14xGeYxfopgqwieCzalT2M%3D"
+    $UpdateSAS = "https://patching.blob.local.azurestack.external/updates/Windows10.0-KB5021235-x64.cab?sp=racwd&st=2023-01-04T23:18:07Z&se=2023-01-05T07:18:07Z&spr=https&sv=2019-02-02&sr=b&sig=hZD%2B95vJamcVC975mmhDmIaRfg0mcYQZzL9eLXcpPow%3D"
     Write-Log -log ("URI Provided: " + $($UpdateSAS))
     
     #####Variables
     $Creds = Get-Credential -Message "appsvc.local\appsvcadmin credentials" -UserName "appsvc.local\appsvcadmin"
     Write-Log -log "Credentials Provided for appsvc.local\appsvcadmin"
-    $patchname = "Windows10.0-KB5021654-x64.cab"
+    $patchname = "Windows10.0-KB5021235-x64.cab"
     Write-Log -log ("Patch Name Provided: " + $($patchname))
     $KB = $patchname.Split('-')[1]
     if($KB -notlike "KB*"){
@@ -71,6 +71,15 @@ Function Set-Failover ($ServerName,$mode){
     #Server Core Machine Variable (Script Aassumes two SQL Servers named aps-sql-0 & aps-sql-1)
     $ServerCoreMachines = "aps-ad-0","aps-ad-1","aps-s2d-0","aps-s2d-1"
     Write-Log -log ("Server Core Machine List: " + $($ServerCoreMachines) + " *This script assumes two SQL Servers named aps-sql-0 & aps-sql-1")
+            
+    #Configure WinRM Access
+    $AllMachines = @('aps-sql-0' + $dnsfqdn),('aps-sql-1' + $dnsfqdn)
+    ForEach($servercoremachine in $ServerCoreMachines) {$AllMachines += ($servercoremachine + $dnsfqdn) }
+    ForEach($AllMachine in $AllMachines) {
+        if($ips -eq $null) {$ips = (Resolve-DnsName $($AllMachine)).ipaddress }
+        else {$ips = $ips + ',' + (Resolve-DnsName $($AllMachine)).ipaddress }
+        }
+    Set-Item WSMan:\localhost\Client\TrustedHosts -Value "$ips" -Concatenate -Force
     
     #Begin SQL Only Section
     Write-Log -log "Begining SQL Server Patching Section"
