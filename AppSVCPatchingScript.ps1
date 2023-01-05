@@ -46,7 +46,7 @@ Function Set-Failover ($ServerName,$mode){
     #endregion 
     
     #Must be in cab format for dism command to work
-    $UpdateSAS = "https://patching.blob.local.azurestack.external/updates/Windows10.0-KB5021235-x64.cab?sp=racwd&st=2023-01-04T23:18:07Z&se=2023-01-05T07:18:07Z&spr=https&sv=2019-02-02&sr=b&sig=hZD%2B95vJamcVC975mmhDmIaRfg0mcYQZzL9eLXcpPow%3D"
+    $UpdateSAS = "<SAS URI>"
     Write-Log -log ("URI Provided: " + $($UpdateSAS))
     
     #####Variables
@@ -73,14 +73,11 @@ Function Set-Failover ($ServerName,$mode){
     Write-Log -log ("Server Core Machine List: " + $($ServerCoreMachines) + " *This script assumes two SQL Servers named aps-sql-0 & aps-sql-1")
             
     #Configure WinRM Access
-    $AllMachines = @('aps-sql-0' + $dnsfqdn),('aps-sql-1' + $dnsfqdn)
-    ForEach($servercoremachine in $ServerCoreMachines) {$AllMachines += ($servercoremachine + $dnsfqdn) }
-    ForEach($AllMachine in $AllMachines) {
-        if($ips -eq $null) {$ips = (Resolve-DnsName $($AllMachine)).ipaddress }
-        else {$ips = $ips + ',' + (Resolve-DnsName $($AllMachine)).ipaddress }
-        }
-    Set-Item WSMan:\localhost\Client\TrustedHosts -Value "$ips" -Concatenate -Force
+    $AllMachines = 'aps-sql-0' + $dnsfqdn + ',' +'aps-sql-1' + $dnsfqdn
+    ForEach($servercoremachine in $ServerCoreMachines) {$AllMachines = $allmachines + ',' + $servercoremachine + $dnsfqdn }
+    Set-Item WSMan:\localhost\Client\TrustedHosts -Value "$allmachines" -Concatenate -Force
     Write-Log -log "WinRM Access Set"
+    
     
     #Begin SQL Only Section
     Write-Log -log "Begining SQL Server Patching Section"
@@ -109,9 +106,6 @@ Function Set-Failover ($ServerName,$mode){
     #Patch if KB not found installed
     if($kb -notin $Hotfix.HotfixID){
         Write-Log -log "KB Not Installed. Begining install procedure. "
-        Set-Failover -ServerName $Secondary -mode "Manual"
-        Write-Log -log "Setting Failover to Manual"
-        Invoke-Command -Session $Session -ScriptBlock { Invoke-Sqlcmd -Query $using:sqlcommand }
         
         Invoke-Command -Session $Session -ScriptBlock {
             $TLS12Protocol = [System.Net.SecurityProtocolType] 'Ssl3 , Tls12'
