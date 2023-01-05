@@ -80,6 +80,7 @@ Function Set-Failover ($ServerName,$mode){
         else {$ips = $ips + ',' + (Resolve-DnsName $($AllMachine)).ipaddress }
         }
     Set-Item WSMan:\localhost\Client\TrustedHosts -Value "$ips" -Concatenate -Force
+    Write-Log -log "WinRM Access Set"
     
     #Begin SQL Only Section
     Write-Log -log "Begining SQL Server Patching Section"
