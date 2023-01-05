@@ -46,7 +46,7 @@ Function Set-Failover ($ServerName,$mode){
     #endregion 
     
     #Must be in cab format for dism command to work
-    $UpdateSAS = "<SAS URI>"
+    $UpdateSAS = "https://patching.blob.local.azurestack.external/updates/Windows10.0-KB5021235-x64.cab?sp=r&st=2023-01-05T19:29:42Z&se=2023-01-27T03:29:42Z&spr=https&sv=2019-02-02&sr=b&sig=WAJ0hE2qfZPUZN7nQ1YlLWz9ToyqjdmyEjIu%2BaBFlC8%3D"
     Write-Log -log ("URI Provided: " + $($UpdateSAS))
     
     #####Variables
@@ -244,19 +244,19 @@ Function Set-Failover ($ServerName,$mode){
         Write-Log -log ($Hotfix | Select HotfixID,InstalledOn,PSComputerName)
     
         if($kb -notin $Hotfix.HotfixID){
-        Write-Log -log ("Begining patching for " + $($serverCoreMachine))
-        Invoke-Command -Session $session -ScriptBlock {
+            Write-Log -log ("Begining patching for " + $($serverCoreMachine))
+            Invoke-Command -Session $session -ScriptBlock {
         
-        $TLS12Protocol = [System.Net.SecurityProtocolType] 'Ssl3 , Tls12'
-        [System.Net.ServicePointManager]::SecurityProtocol = $TLS12Protocol
+            $TLS12Protocol = [System.Net.SecurityProtocolType] 'Ssl3 , Tls12'
+            [System.Net.ServicePointManager]::SecurityProtocol = $TLS12Protocol
         
-        $path = Test-Path 'c:\patching'
-        if($path -eq $false){ new-item -ItemType Directory -Path c:\patching }
+            $path = Test-Path 'c:\patching'
+            if($path -eq $false){ new-item -ItemType Directory -Path c:\patching }
         
-        invoke-RestMethod -uri $using:UpdateSAS -OutFile "c:\Patching\$($using:patchname)" 
-        #dism /Online /Add-Package /PackagePath:"c:\Patching\$($using:patchname)" /norestart
-        #restart-computer -force
-        }
+            invoke-RestMethod -uri $using:UpdateSAS -OutFile "c:\Patching\$($using:patchname)" 
+            dism /Online /Add-Package /PackagePath:"c:\Patching\$($using:patchname)" /norestart
+            restart-computer -force
+            }
     
         Write-Log -log "Update Installed. Sleeping 90 Seconds for reboot."
         
@@ -280,6 +280,28 @@ Function Set-Failover ($ServerName,$mode){
         Invoke-Command -Session $session -ScriptBlock {Remove-Item "c:\Patching\$($using:patchname)" -Force}
         Write-Log -log ("Patching completed for: " + $($ServerCoreMachine))
         }
-        Else{Write-Log -log "$($KB) already installed. Skipping."}
+        
+        Elseif((Invoke-Command -Session $session -ScriptBlock {Get-HotFix | ? {$_.HotfixID -eq $KB}}).InstalledOn -eq $null){
+            Write-Log -log "Hotfix applied but restart is needed to complete installation. Begining Restart"
+            Invoke-Command -Session $session -ScriptBlock {restart-computer -force}
+
+            $Session = New-PSSession -ComputerName ($ServerCoreMachine + $dnsfqdn) -Credential $Creds
+            Write-Log -log ("Session created for: " + $($session.ComputerName) + " State: " + $($Session.State))
+    
+            Write-Log -log "Monitoring NetLogon Service for reboot complete"
+        
+            Invoke-Command -Session $session -ScriptBlock {
+    
+                do
+                {
+                    start-sleep -Seconds 60
+                }
+                until ((Get-Service -Name Netlogon).Status -eq "Running")
+            }
+            }
+        
+        Else{
+            Write-Log -log "$($KB) already installed. Skipping."
+            }
     }
     Write-Log -log "End patching script."
