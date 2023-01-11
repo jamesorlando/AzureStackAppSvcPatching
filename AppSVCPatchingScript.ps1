@@ -65,7 +65,7 @@ Function Set-Failover ($ServerName,$mode){
     #build dns alias fqdn
     $AzEnv = Get-AzEnvironment -Name AzureStackAdmin
     $dnsfqdn = ($AzEnv.ResourceManagerUrl).Split('.')
-    $dnsfqdn = "." + $dnsfqdn[1] + ".cloudapp." + $dnsfqdn[2] + "." + $dnsfqdn[3]
+    $dnsfqdn = "." + $dnsfqdn[1] + ".cloudapp." + ($dnsfqdn[2..10] -join ".")
     Write-Log -log ("Public IP DNS Alias FQDN is: " + $($dnsfqdn))
     
     #Server Core Machine Variable (Script Aassumes two SQL Servers named aps-sql-0 & aps-sql-1)
