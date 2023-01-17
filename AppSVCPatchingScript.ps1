@@ -284,7 +284,7 @@ Function Set-Failover ($ServerName,$mode){
         Elseif((Invoke-Command -Session $session -ScriptBlock {Get-HotFix | ? {$_.HotfixID -eq $KB}}).InstalledOn -eq $null){
             Write-Log -log "Hotfix applied but restart is needed to complete installation. Begining Restart"
             Invoke-Command -Session $session -ScriptBlock {restart-computer -force}
-
+            start-sleep -Seconds 90
             $Session = New-PSSession -ComputerName ($ServerCoreMachine + $dnsfqdn) -Credential $Creds
             Write-Log -log ("Session created for: " + $($session.ComputerName) + " State: " + $($Session.State))
     
