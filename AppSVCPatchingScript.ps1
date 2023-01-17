@@ -52,9 +52,9 @@ Function Set-Failover ($ServerName,$mode){
     #####Variables
     $Creds = Get-Credential -Message "appsvc.local\appsvcadmin credentials" -UserName "appsvc.local\appsvcadmin"
     Write-Log -log "Credentials Provided for appsvc.local\appsvcadmin"
-    $patchname = "Windows10.0-KB5021235-x64.cab"
+    $patchname = ($updatesas.split('?')).split('/') | ? {$_ -like "*.cab"}
     Write-Log -log ("Patch Name Provided: " + $($patchname))
-    $KB = $patchname.Split('-')[1]
+    $KB = ((($updatesas.split('?')).split('/')).split('-')) | ? {$_ -like "KB*"}
     if($KB -notlike "KB*"){
     Write-Log -log "KB Number not identified. Prompting User"
     $KB = Read-Host -Prompt "KB Number not extracted. Provide the KB number begining with KB..."
