@@ -281,7 +281,7 @@ Function Set-Failover ($ServerName,$mode){
         Write-Log -log ("Patching completed for: " + $($ServerCoreMachine))
         }
         
-        Elseif((Invoke-Command -Session $session -ScriptBlock {Get-HotFix | ? {$_.HotfixID -eq $using:KB}}).InstalledOn -eq $null){
+        Elseif((Invoke-Command -Session $session -ScriptBlock {Get-HotFix | ? {$_.HotfixID -eq $using:KB}}).InstalledOn -eq ''){
             Write-Log -log "Hotfix applied but restart is needed to complete installation. Begining Restart"
             Invoke-Command -Session $session -ScriptBlock {restart-computer -force}
             start-sleep -Seconds 90
