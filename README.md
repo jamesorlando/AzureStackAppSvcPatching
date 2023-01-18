@@ -34,8 +34,6 @@
 ## o	Line 49: $UpdateSAS – URI for the cab file uploaded to a storage account
 # •	Provide Credentials for appsvc.local\appsvcadmin
 ## o	You will be prompted for this and does not need to be set now
-# •	Provide cab file name
-## o	
 # Additional Information
 # •	Log file is created at c:\temp\UpdateDeployment.log
 # •	AD FS is something I will work on next
