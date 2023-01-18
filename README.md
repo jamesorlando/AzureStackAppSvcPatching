@@ -35,7 +35,7 @@
 # •	Provide Credentials for appsvc.local\appsvcadmin
 ## o	You will be prompted for this and does not need to be set now
 # •	Provide cab file name
-## o	Line 55: $patchname -ex: Windows10.0-KB5021654-x64.cab
+## o	
 # Additional Information
 # •	Log file is created at c:\temp\UpdateDeployment.log
 # •	AD FS is something I will work on next
