@@ -8,15 +8,6 @@
     Date Create: 12/7/2022
 
 #>
-
-Function Set-Failover ($ServerName,$mode){
-    $global:sqlcommand = "ALTER AVAILABILITY GROUP [alwayson-ag] MODIFY REPLICA ON '$($ServerName)' WITH(FAILOVER_MODE = $($mode));"
-    
-    $log = "Failover command was created: " + $global:sqlcommand
-    
-    Write-Log -log $log
-    }
-    
     Function Write-Log ($log){
         $log + " " + (Get-Date) | Out-File "C:\temp\UpdateDeployment.log" -Append
         if((Get-Item "C:\temp\UpdateDeployment.log").length -gt "5mb")
@@ -46,7 +37,7 @@ Function Set-Failover ($ServerName,$mode){
     #endregion 
     
     #Must be in cab format for dism command to work
-    $UpdateSAS = "https://patching.blob.local.azurestack.external/updates/Windows10.0-KB5021235-x64.cab?sp=r&st=2023-01-05T19:29:42Z&se=2023-01-27T03:29:42Z&spr=https&sv=2019-02-02&sr=b&sig=WAJ0hE2qfZPUZN7nQ1YlLWz9ToyqjdmyEjIu%2BaBFlC8%3D"
+    $UpdateSAS = "https://patching.blob.local.azurestack.external/updates/Windows10.0-KB5022289-x64.cab?sp=r&st=2023-01-19T19:54:46Z&se=2023-02-03T03:54:46Z&spr=https&sv=2019-02-02&sr=b&sig=dkQIwXgjQYY7%2B1HnBbe%2F6XxMp2MESLLKZ5oBz80Yj5g%3D"
     Write-Log -log ("URI Provided: " + $($UpdateSAS))
     
     #####Variables
@@ -121,7 +112,7 @@ Function Set-Failover ($ServerName,$mode){
         
         Write-Log -log "Update Installed. Sleeping 90 Seconds for reboot."
         
-        start-sleep -Seconds 90
+        start-sleep -Seconds 180
     
         $Session = New-PSSession -ComputerName ($Secondary + $dnsfqdn) -Credential $Creds
         Write-Log -log ("Session created for: " + $($session.ComputerName) + " State: " + $($Session.State))
@@ -162,14 +153,8 @@ Function Set-Failover ($ServerName,$mode){
     Write-Log -log ($Hotfix | Select HotfixID,InstalledOn,PSComputerName)
     
     if($kb -notin $Hotfix.HotfixID){
-    
-        Set-Failover -ServerName $Primary -mode 'Manual'
-    
-        Write-Log -log "Setting failover to manual"
-        Invoke-Command -Session $session -ScriptBlock { Invoke-Sqlcmd -Query $using:sqlcommand}
-        
         Write-Log -log "Moving to secondary node"
-        Invoke-Command -Session $session -ScriptBlock {Move-ClusterGroup 'alwayson-ag' -Node $using:secondary}
+        Invoke-Command -Session $session -ScriptBlock {Move-ClusterGroup -name 'alwayson-ag' -Node $using:secondary}
     
         Invoke-Command -Session $Session -ScriptBlock {
             $TLS12Protocol = [System.Net.SecurityProtocolType] 'Ssl3 , Tls12'
@@ -184,7 +169,7 @@ Function Set-Failover ($ServerName,$mode){
             }
         Write-Log -log "Update Installed. Sleeping 90 Seconds for reboot."
         
-        start-sleep -Seconds 90
+        start-sleep -Seconds 180
     
         $Session = New-PSSession -ComputerName ($Primary + $dnsfqdn) -Credential $Creds
         Write-Log -log ("Session created for: " + $($session.ComputerName) + " State: " + $($Session.State))
@@ -215,22 +200,6 @@ Function Set-Failover ($ServerName,$mode){
     }
     Else{Write-Log -log "$($KB) already installed. Skipping."}
     
-    #Set failover back to automatic - if needed
-    if($sqlpatch -eq $true){
-        Write-Log -log "Setting failover back to automatic on seconday"
-        Set-Failover -ServerName $Secondary -mode 'Automatic'
-        $Session = New-PSSession -ComputerName ($Secondary + $dnsfqdn) -Credential $Creds
-        Write-Log -log ("Session created for: " + $($session.ComputerName) + " State: " + $($Session.State))
-        Invoke-Command -Session $session -ScriptBlock { Invoke-Sqlcmd -Query $using:sqlcommand}
-    
-        Write-Log -log "Setting failover back to automatic on primary"
-        Set-Failover -ServerName $Primary -mode 'Automatic'
-    
-        $Session = New-PSSession -ComputerName ($Primary + $dnsfqdn) -Credential $Creds
-        Write-Log -log ("Session created for: " + $($session.ComputerName) + " State: " + $($Session.State))
-        Invoke-Command -Session $session -ScriptBlock { Invoke-Sqlcmd -Query $using:sqlcommand}
-        }
-    
     #################Server Core OS Patching##########
     Write-Log -log "Begining to patch Server Core OS machines"
     ForEach($ServerCoreMachine in $ServerCoreMachines){
@@ -260,7 +229,9 @@ Function Set-Failover ($ServerName,$mode){
     
         Write-Log -log "Update Installed. Sleeping 90 Seconds for reboot."
         
-        start-sleep -Seconds 90
+        start-sleep -Seconds 180
+
+        Write-Log -log "Done Sleeping."
     
         $Session = New-PSSession -ComputerName ($ServerCoreMachine + $dnsfqdn) -Credential $Creds
         Write-Log -log ("Session created for: " + $($session.ComputerName) + " State: " + $($Session.State))
@@ -284,7 +255,7 @@ Function Set-Failover ($ServerName,$mode){
         Elseif((Invoke-Command -Session $session -ScriptBlock {Get-HotFix | ? {$_.HotfixID -eq $using:KB}}).InstalledOn -eq ''){
             Write-Log -log "Hotfix applied but restart is needed to complete installation. Begining Restart"
             Invoke-Command -Session $session -ScriptBlock {restart-computer -force}
-            start-sleep -Seconds 90
+            start-sleep -Seconds 180
             $Session = New-PSSession -ComputerName ($ServerCoreMachine + $dnsfqdn) -Credential $Creds
             Write-Log -log ("Session created for: " + $($session.ComputerName) + " State: " + $($Session.State))
     
